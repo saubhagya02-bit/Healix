@@ -1,122 +1,156 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Layout from "./components/layout/Layout";
+import { LoadingSpinner } from "./components/common";
 
-function App() {
-  const [count, setCount] = useState(0)
+// Auth pages
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+// Admin pages
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminDoctors from "./pages/admin/Doctors";
+import AdminPatients from "./pages/admin/Patients";
+import AdminAppointments from "./pages/admin/Appointments";
+import AdminDepartments from "./pages/admin/Departments";
+import AdminReports from "./pages/admin/Reports";
+import AdminUsers from "./pages/admin/Users";
 
-      <div className="ticks"></div>
+// Doctor pages
+import DoctorDashboard from "./pages/doctor/Dashboard";
+import DoctorAppointments from "./pages/doctor/Appointments";
+import DoctorPatients from "./pages/doctor/Patients";
+import DoctorRecords from "./pages/doctor/Records";
+import DoctorProfile from "./pages/doctor/Profile";
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+// Patient pages
+import PatientDashboard from "./pages/patient/Dashboard";
+import PatientAppointments from "./pages/patient/Appointments";
+import BookAppointment from "./pages/patient/BookAppointment";
+import PatientRecords from "./pages/patient/Records";
+import PatientPrescriptions from "./pages/patient/Prescriptions";
+import PatientProfile from "./pages/patient/Profile";
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+// Route Guards
+
+function ProtectedRoute({ children, allowedRoles }) {
+  const { user, loading } = useAuth();
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to={`/${user.role}`} replace />;
+  }
+  return children;
 }
 
-export default App
+function PublicRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  if (user) return <Navigate to={`/${user.role}`} replace />;
+  return children;
+}
+
+// App
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public */}
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <Register />
+          </PublicRoute>
+        }
+      />
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* Admin */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="doctors" element={<AdminDoctors />} />
+        <Route path="patients" element={<AdminPatients />} />
+        <Route path="departments" element={<AdminDepartments />} />
+        <Route path="appointments" element={<AdminAppointments />} />
+        <Route path="reports" element={<AdminReports />} />
+      </Route>
+
+      {/* Doctor */}
+      <Route
+        path="/doctor"
+        element={
+          <ProtectedRoute allowedRoles={["doctor"]}>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<DoctorDashboard />} />
+        <Route path="appointments" element={<DoctorAppointments />} />
+        <Route path="patients" element={<DoctorPatients />} />
+        <Route path="records" element={<DoctorRecords />} />
+        <Route path="profile" element={<DoctorProfile />} />
+      </Route>
+
+      {/* Patient */}
+      <Route
+        path="/patient"
+        element={
+          <ProtectedRoute allowedRoles={["patient"]}>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PatientDashboard />} />
+        <Route path="appointments" element={<PatientAppointments />} />
+        <Route path="book" element={<BookAppointment />} />
+        <Route path="records" element={<PatientRecords />} />
+        <Route path="prescriptions" element={<PatientPrescriptions />} />
+        <Route path="profile" element={<PatientProfile />} />
+      </Route>
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+        <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
