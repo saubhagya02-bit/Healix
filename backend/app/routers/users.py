@@ -25,13 +25,14 @@ def get_users(
     return query.offset(skip).limit(limit).all()
 
 
-@router.get("/user_id", response_model=UserResponse)
+@router.get("/{user_id}", response_model=UserResponse)
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.role != UserRole.admin and current_user != user_id:
+
+    if current_user.role != UserRole.admin and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     user = db.query(User).filter(User.id == user_id).first()
@@ -57,9 +58,9 @@ def update_user(
     for field, value in user_data.model_dump(exclude_unset=True).items():
         setattr(user, field, value)
 
-        db.commit()
-        db.refresh(user)
-        return user
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.patch("/{user_id}/toggle-active")
@@ -90,7 +91,7 @@ def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.id == current_user.id:
-        raise HTTPException(status_code=400, detail="Cannot delete ypur own account")
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
     db.delete(user)
     db.commit()
