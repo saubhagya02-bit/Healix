@@ -12,7 +12,7 @@ from app.routers import (
     auth,
     patients,
     doctors,
-    appoinments,
+    appointments,
     records,
     departments,
     reports,
@@ -41,21 +41,26 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(patients.router)
 app.include_router(doctors.router)
-app.include_router(appoinments.router)
+app.include_router(appointments.router)
 app.include_router(records.router)
 app.include_router(departments.router)
 app.include_router(reports.router)
 
-# Static files for uploaded lab reports
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+@app.on_event("startup")
+def on_startup():
+
+    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/")
 def root():
     return {
         "app": settings.APP_NAME,
-        "versiom": "1.0.0",
+        "version": "1.0.0",
         "docs": "/docs",
         "status": "running",
     }
