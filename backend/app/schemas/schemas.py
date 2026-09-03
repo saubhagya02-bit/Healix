@@ -133,7 +133,7 @@ class DoctorResponse(DoctorBase):
         from_attributes = True
 
 
-# Appoinment Schemas
+# Appointment Schemas
 class AppointmentBase(BaseModel):
     appointment_date: datetime
     reason: Optional[str] = None
@@ -250,4 +250,5 @@ class DashboardStats(BaseModel):
     today_appointments: int
     pending_appointments: int
     completed_appointments: int
+    total_departments: int
     monthly_revenue: float
