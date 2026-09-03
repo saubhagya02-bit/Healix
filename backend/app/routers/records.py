@@ -76,8 +76,12 @@ def create_record(
 ):
     """Doctor creates a medical record."""
     doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
-    if not doctor and current_user.role != UserRole.admin:
-        raise HTTPException(status_code=404, detail="Doctor profile not found")
+
+    if not doctor:
+        raise HTTPException(
+            status_code=400,
+            detail="Only a user with a doctor profile can create medical records",
+        )
 
     # Validate patient
     patient = db.query(Patient).filter(Patient.id == record_data.patient_id).first()
@@ -88,7 +92,7 @@ def create_record(
 
     record = MedicalRecord(
         patient_id=record_data.patient_id,
-        doctor_id=doctor.id if doctor else 1,
+        doctor_id=doctor.id,
         appointment_id=record_data.appointment_id,
         diagnosis=record_data.diagnosis,
         treatment=record_data.treatment,
