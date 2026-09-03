@@ -71,9 +71,9 @@ def update_my_profile(
     for field, value in patient_data.model_dump(exclude_unset=True).items():
         setattr(patient, field, value)
 
-        db.commit()
-        db.refresh(patient)
-        return patient
+    db.commit()
+    db.refresh(patient)
+    return patient
 
 
 @router.put("/{patient_id}", response_model=PatientResponse)
@@ -91,8 +91,8 @@ def update_patient(
     for field, value in patient_data.model_dump(exclude_unset=True).items():
         setattr(patient, field, value)
 
-    db.commit() # Saves changes to the database
-    db.refresh(patient) # Reloads the updated patient from the database
+    db.commit()  # Saves changes to the database
+    db.refresh(patient)
     return patient
 
 
