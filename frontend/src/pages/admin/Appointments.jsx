@@ -48,8 +48,8 @@ export default function PatientAppointments() {
   return (
     <div>
       <PageHeader
-        title="My Appointments"
-        subtitle="View and manage your appointments"
+        title="Appointments"
+        subtitle="View and manage appointments"
         action={
           <Link
             to="/patient/book"
@@ -79,7 +79,7 @@ export default function PatientAppointments() {
             {appointments.map((a) => (
               <tr key={a.id} className="hover:bg-gray-50">
                 <td className="table-cell font-medium">
-                  Dr. {a.doctor?.user?.name}
+                  {a.doctor?.user?.name}
                 </td>
                 <td className="table-cell text-gray-500 text-xs">
                   {a.doctor?.specialization || "—"}
