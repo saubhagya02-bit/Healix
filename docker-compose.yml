@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  # PostgreSQL Database 
+  db:
+    image: postgres:16-alpine
+    container_name: medicare_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: medicare_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: medicare_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/medicare_db
+      SECRET_KEY: super-secret-key-change-in-production-minimum-32-characters
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:80,http://frontend
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    command: >
+      sh -c "python -m app.database.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  # React Frontend 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: medicare_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  uploads_data:
