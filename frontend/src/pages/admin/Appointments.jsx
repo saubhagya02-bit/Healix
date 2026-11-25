@@ -9,39 +9,51 @@ import {
 } from "../../components/common";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { Link } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
-export default function PatientAppointments() {
+const STATUSES = ["pending", "confirmed", "completed", "cancelled"];
+
+export default function AdminAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
   const [confirmTarget, setConfirmTarget] = useState(null);
-  const [cancelling, setCancelling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = () => {
     setLoading(true);
     appointmentAPI
-      .getAll()
+      .getAll(statusFilter ? { status: statusFilter } : {})
       .then((r) => setAppointments(r.data))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     load();
-  }, []);
+  }, [statusFilter]);
 
-  const handleCancel = async () => {
-    if (!confirmTarget) return;
-    setCancelling(true);
+  const changeStatus = async (id, status) => {
     try {
-      await appointmentAPI.cancel(confirmTarget.id);
-      toast.success("Appointment cancelled");
+      await appointmentAPI.update(id, { status });
+      toast.success("Status updated");
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to update");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmTarget) return;
+    setDeleting(true);
+    try {
+      await appointmentAPI.delete(confirmTarget.id);
+      toast.success("Appointment deleted");
       setConfirmTarget(null);
       load();
-    } catch {
-      toast.error("Failed to cancel");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to delete");
     } finally {
-      setCancelling(false);
+      setDeleting(false);
     }
   };
 
@@ -49,14 +61,20 @@ export default function PatientAppointments() {
     <div>
       <PageHeader
         title="Appointments"
-        subtitle="View and manage appointments"
+        subtitle="All appointments across the hospital"
         action={
-          <Link
-            to="/patient/book"
-            className="btn-primary flex items-center gap-2"
+          <select
+            className="input-field w-auto"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <Plus className="w-4 h-4" /> Book Appointment
-          </Link>
+            <option value="">All Statuses</option>
+            {STATUSES.map((s) => (
+              <option key={s} value={s} className="capitalize">
+                {s}
+              </option>
+            ))}
+          </select>
         }
       />
 
@@ -66,23 +84,26 @@ export default function PatientAppointments() {
         ) : (
           <Table
             headers={[
+              "Patient",
               "Doctor",
-              "Specialization",
               "Date & Time",
               "Reason",
               "Status",
               "Actions",
             ]}
             isEmpty={appointments.length === 0}
-            emptyMessage="No appointments yet. Book your first appointment!"
+            emptyMessage="No appointments found"
           >
             {appointments.map((a) => (
               <tr key={a.id} className="hover:bg-gray-50">
                 <td className="table-cell font-medium">
-                  {a.doctor?.user?.name}
+                  {a.patient?.user?.name || "—"}
                 </td>
-                <td className="table-cell text-gray-500 text-xs">
-                  {a.doctor?.specialization || "—"}
+                <td className="table-cell">
+                  <div>Dr. {a.doctor?.user?.name}</div>
+                  <div className="text-xs text-gray-400">
+                    {a.doctor?.specialization || ""}
+                  </div>
                 </td>
                 <td className="table-cell text-xs">
                   {a.appointment_date
@@ -94,14 +115,25 @@ export default function PatientAppointments() {
                   <StatusBadge status={a.status} />
                 </td>
                 <td className="table-cell">
-                  {(a.status === "pending" || a.status === "confirmed") && (
+                  <div className="flex items-center gap-3">
+                    <select
+                      className="input-field w-auto text-xs py-1"
+                      value={a.status}
+                      onChange={(e) => changeStatus(a.id, e.target.value)}
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       onClick={() => setConfirmTarget(a)}
-                      className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      className="text-red-500 hover:text-red-700"
                     >
-                      Cancel
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                  )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -112,21 +144,12 @@ export default function PatientAppointments() {
       <ConfirmDialog
         isOpen={!!confirmTarget}
         onClose={() => setConfirmTarget(null)}
-        onConfirm={handleCancel}
-        title="Cancel this appointment?"
-        message={
-          confirmTarget
-            ? `Your appointment with Dr. ${confirmTarget.doctor?.user?.name}${
-                confirmTarget.appointment_date
-                  ? ` on ${format(new Date(confirmTarget.appointment_date), "dd MMM yyyy, HH:mm")}`
-                  : ""
-              } will be cancelled.`
-            : ""
-        }
-        confirmLabel="Cancel Appointment"
-        cancelLabel="Keep Appointment"
+        onConfirm={handleDelete}
+        title="Delete this appointment?"
+        message="This will permanently remove the appointment. This can't be undone."
+        confirmLabel="Delete"
         danger
-        loading={cancelling}
+        loading={deleting}
       />
     </div>
   );
