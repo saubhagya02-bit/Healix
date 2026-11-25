@@ -47,8 +47,8 @@ export default function AdminUsers() {
       toast.success("User deleted");
       setConfirmTarget(null);
       load();
-    } catch {
-      toast.error("Failed to delete");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to delete");
     } finally {
       setDeleting(false);
     }
