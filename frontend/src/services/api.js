@@ -15,10 +15,23 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
-      localStorage.clear();
+    // FastAPI 422 returns detail as an array of objects. Toasts can't render
+    // that (React crashes), so flatten it into a readable string.
+    const detail = err.response?.data?.detail;
+    if (Array.isArray(detail)) {
+      err.response.data.detail = detail
+        .map((d) => d.msg?.replace(/^Value error, /, "") || "Invalid input")
+        .join(", ");
+    }
 
-      window.location.href = "/login";
+    // Only treat 401 as "session expired" for non-login requests. Otherwise a
+    // wrong password reloads the page and the error toast never shows.
+    const isLoginCall = err.config?.url?.includes("/auth/login");
+    if (err.response?.status === 401 && !isLoginCall) {
+      localStorage.clear();
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(err);
   },
@@ -85,6 +98,7 @@ export const departmentAPI = {
 // Users
 export const userAPI = {
   getAll: (params) => api.get("/users", { params }),
+  create: (data) => api.post("/users", data),
   getById: (id) => api.get(`/users/${id}`),
   update: (id, data) => api.put(`/users/${id}`, data),
   toggleActive: (id) => api.patch(`/users/${id}/toggle-active`),
