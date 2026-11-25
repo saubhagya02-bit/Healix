@@ -53,8 +53,12 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    patient_profile = relationship("Patient", back_populates="user", uselist=False)
-    doctor_profile = relationship("Doctor", back_populates="user", uselist=False)
+    patient_profile = relationship(
+        "Patient", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+    doctor_profile = relationship(
+        "Doctor", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
 
 
 class Department(Base):
