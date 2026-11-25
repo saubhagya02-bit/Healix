@@ -10,6 +10,8 @@ from app.models.models import (
     Doctor,
     User,
     UserRole,
+    Appointment,
+    AppointmentStatus,
 )
 from app.schemas.schemas import (
     MedicalRecordCreate,
@@ -88,6 +90,27 @@ def create_record(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
+    appointment = None
+    if record_data.appointment_id:
+        appointment = (
+            db.query(Appointment)
+            .filter(Appointment.id == record_data.appointment_id)
+            .first()
+        )
+        if (
+            not appointment
+            or appointment.doctor_id != doctor.id
+            or appointment.patient_id != record_data.patient_id
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Appointment does not match this doctor and patient",
+            )
+        if appointment.medical_record:
+            raise HTTPException(
+                status_code=400, detail="This appointment already has a record"
+            )
+
     prescriptions_data = record_data.prescriptions or []
 
     record = MedicalRecord(
@@ -101,6 +124,9 @@ def create_record(
     )
     db.add(record)
     db.flush()
+
+    if appointment:
+        appointment.status = AppointmentStatus.completed
 
     # Add prescriptions
     for rx in prescriptions_data:
@@ -125,6 +151,13 @@ def update_record(
     record = db.query(MedicalRecord).filter(MedicalRecord.id == record_id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Medical record not found")
+
+    if current_user.role == UserRole.doctor:
+        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
+        if not doctor or record.doctor_id != doctor.id:
+            raise HTTPException(
+                status_code=403, detail="You can only edit your own records"
+            )
 
     for field, value in record_data.model_dump(exclude_unset=True).items():
         setattr(record, field, value)
