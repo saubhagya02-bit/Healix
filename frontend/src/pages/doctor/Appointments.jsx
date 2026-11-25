@@ -74,8 +74,7 @@ export default function DoctorAppointments() {
         follow_up_date: form.follow_up_date || null,
         prescriptions: prescriptions.filter((p) => p.medicine_name.trim()),
       });
-      // Mark appointment as completed
-      await appointmentAPI.update(selected.id, { status: "completed" });
+      // (the backend marks the appointment as completed automatically)
       toast.success("Medical record saved");
       setShowRecord(false);
       load();
@@ -83,6 +82,16 @@ export default function DoctorAppointments() {
       toast.error(err.response?.data?.detail || "Failed to save record");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmAppt = async (id) => {
+    try {
+      await appointmentAPI.update(id, { status: "confirmed" });
+      toast.success("Appointment confirmed");
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to confirm");
     }
   };
 
@@ -139,6 +148,14 @@ export default function DoctorAppointments() {
                   <StatusBadge status={a.status} />
                 </td>
                 <td className="table-cell">
+                  {a.status === "pending" && (
+                    <button
+                      onClick={() => confirmAppt(a.id)}
+                      className="btn-secondary text-xs py-1 mr-2"
+                    >
+                      Confirm
+                    </button>
+                  )}
                   {a.status !== "completed" && a.status !== "cancelled" && (
                     <button
                       onClick={() => openRecord(a)}
