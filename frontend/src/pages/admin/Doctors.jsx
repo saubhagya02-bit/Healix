@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { doctorAPI, departmentAPI, userAPI, authAPI } from "../../services/api";
+import { doctorAPI, departmentAPI, userAPI } from "../../services/api";
 import {
   PageHeader,
   Table,
@@ -21,7 +21,7 @@ export default function AdminDoctors() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    password: "doctor123",
+    password: "",
     specialization: "",
     license_no: "",
     department_id: "",
@@ -48,9 +48,10 @@ export default function AdminDoctors() {
   const handleCreate = async (e) => {
     e.preventDefault();
     setSaving(true);
+    let userRes = null;
     try {
       // 1. Create user
-      const userRes = await authAPI.register({
+      userRes = await userAPI.create({
         name: form.name,
         email: form.email,
         password: form.password,
@@ -63,13 +64,19 @@ export default function AdminDoctors() {
         license_no: form.license_no,
         department_id: parseInt(form.department_id) || null,
         qualification: form.qualification,
-        experience_years: parseInt(form.experience_years),
-        consultation_fee: parseFloat(form.consultation_fee),
+        experience_years: parseInt(form.experience_years) || 0,
+        consultation_fee: parseFloat(form.consultation_fee) || 0,
       });
       toast.success("Doctor created successfully");
       setShowModal(false);
       load();
     } catch (err) {
+      // roll back the user if the doctor profile could not be created
+      if (userRes) {
+        try {
+          await userAPI.delete(userRes.data.id);
+        } catch {}
+      }
       toast.error(err.response?.data?.detail || "Failed to create doctor");
     } finally {
       setSaving(false);
@@ -84,8 +91,8 @@ export default function AdminDoctors() {
       toast.success("Doctor deleted");
       setConfirmTarget(null);
       load();
-    } catch {
-      toast.error("Failed to delete");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to delete");
     } finally {
       setDeleting(false);
     }
