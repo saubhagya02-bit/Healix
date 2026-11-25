@@ -27,7 +27,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         name=user_data.name,
         email=user_data.email,
         hashed_password=hash_password(user_data.password),
-        role=user_data.role,
+        role=UserRole.patient,  # public registration is ALWAYS a patient
     )
     db.add(user)
     db.flush()
@@ -54,11 +54,11 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Account is deactivated")
 
-    token = create_access_token({"sub": str(user.id), "role": user.role})
+    token = create_access_token({"sub": str(user.id), "role": user.role.value})
     return {
         "access_token": token,
         "token_type": "bearer",
-        "role": user.role,
+        "role": user.role.value,
         "user_id": user.id,
         "name": user.name,
     }
