@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from app.database.database import get_db
-from app.models.models import Doctor, User, UserRole
+from app.models.models import Doctor, User, UserRole, Appointment, MedicalRecord
 from app.schemas.schemas import DoctorResponse, DoctorCreate, DoctorUpdate
 from app.utils.auth import get_current_user, require_admin
 
@@ -65,7 +65,15 @@ def create_doctor(
 
     existing = db.query(Doctor).filter(Doctor.user_id == doctor_data.user_id).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Doctor profile already exists for this user")
+        raise HTTPException(
+            status_code=400, detail="Doctor profile already exists for this user"
+        )
+
+    if (
+        doctor_data.license_no
+        and db.query(Doctor).filter(Doctor.license_no == doctor_data.license_no).first()
+    ):
+        raise HTTPException(status_code=400, detail="License number already in use")
 
     # Update user role to doctor
     user.role = UserRole.doctor
@@ -126,6 +134,16 @@ def delete_doctor(
     doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
-    db.delete(doctor)
+    if (
+        db.query(Appointment).filter(Appointment.doctor_id == doctor.id).first()
+        or db.query(MedicalRecord).filter(MedicalRecord.doctor_id == doctor.id).first()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Doctor has appointments/medical records and cannot be deleted. Deactivate the user instead.",
+        )
+
+    # Deleting the user cascades to the doctor profile
+    db.delete(doctor.user or doctor)
     db.commit()
     return {"message": "Doctor deleted successfully"}
