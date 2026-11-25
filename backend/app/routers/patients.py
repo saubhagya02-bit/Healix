@@ -3,7 +3,14 @@ from sqlalchemy.orm import Session  # Used to communicate with the database
 from typing import List, Optional
 
 from app.database.database import get_db
-from app.models.models import Patient, User, UserRole
+from app.models.models import (
+    Patient,
+    User,
+    UserRole,
+    Appointment,
+    MedicalRecord,
+    LabReport,
+)
 from app.schemas.schemas import PatientResponse, PatientCreate, PatientUpdate
 from app.utils.auth import get_current_user, require_admin
 
@@ -106,6 +113,18 @@ def delete_patient(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    db.delete(patient)
+    if (
+        db.query(Appointment).filter(Appointment.patient_id == patient.id).first()
+        or db.query(MedicalRecord)
+        .filter(MedicalRecord.patient_id == patient.id)
+        .first()
+        or db.query(LabReport).filter(LabReport.patient_id == patient.id).first()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Patient has appointments/medical records and cannot be deleted. Deactivate the user instead.",
+        )
+
+    db.delete(patient.user or patient)
     db.commit()
     return {"message": "Patient deleted successfully"}
