@@ -6,8 +6,15 @@ from typing import List, Dict, Any
 
 from app.database.database import get_db
 from app.models.models import (
-    User, Patient, Doctor, Appointment, MedicalRecord,
-    Department, AppointmentStatus, UserRole
+    User,
+    Patient,
+    Doctor,
+    Appointment,
+    MedicalRecord,
+    Department,
+    Prescription,
+    AppointmentStatus,
+    UserRole,
 )
 from app.schemas.schemas import DashboardStats
 from app.utils.auth import get_current_user, require_admin
@@ -27,17 +34,23 @@ def admin_dashboard(
     total_departments = db.query(Department).count()
     total_appointments = db.query(Appointment).count()
 
-    today_appointments = db.query(Appointment).filter(
-        func.date(Appointment.appointment_date) == today
-    ).count()
+    today_appointments = (
+        db.query(Appointment)
+        .filter(func.date(Appointment.appointment_date) == today)
+        .count()
+    )
 
-    pending = db.query(Appointment).filter(
-        Appointment.status == AppointmentStatus.pending
-    ).count()
+    pending = (
+        db.query(Appointment)
+        .filter(Appointment.status == AppointmentStatus.pending)
+        .count()
+    )
 
-    completed = db.query(Appointment).filter(
-        Appointment.status == AppointmentStatus.completed
-    ).count()
+    completed = (
+        db.query(Appointment)
+        .filter(Appointment.status == AppointmentStatus.completed)
+        .count()
+    )
 
     # Monthly revenue (sum of consultation fees for completed appointments this month)
     first_of_month = today.replace(day=1)
@@ -77,26 +90,42 @@ def doctor_dashboard(
 
     today = date.today()
 
-    today_patients = db.query(Appointment).filter(
-        Appointment.doctor_id == doctor.id,
-        func.date(Appointment.appointment_date) == today,
-        Appointment.status.in_([AppointmentStatus.pending, AppointmentStatus.confirmed]),
-    ).count()
+    today_patients = (
+        db.query(Appointment)
+        .filter(
+            Appointment.doctor_id == doctor.id,
+            func.date(Appointment.appointment_date) == today,
+            Appointment.status.in_(
+                [AppointmentStatus.pending, AppointmentStatus.confirmed]
+            ),
+        )
+        .count()
+    )
 
-    upcoming = db.query(Appointment).filter(
-        Appointment.doctor_id == doctor.id,
-        Appointment.appointment_date > datetime.now(),
-        Appointment.status.in_([AppointmentStatus.pending, AppointmentStatus.confirmed]),
-    ).count()
+    upcoming = (
+        db.query(Appointment)
+        .filter(
+            Appointment.doctor_id == doctor.id,
+            Appointment.appointment_date > datetime.now(),
+            Appointment.status.in_(
+                [AppointmentStatus.pending, AppointmentStatus.confirmed]
+            ),
+        )
+        .count()
+    )
 
-    completed = db.query(Appointment).filter(
-        Appointment.doctor_id == doctor.id,
-        Appointment.status == AppointmentStatus.completed,
-    ).count()
+    completed = (
+        db.query(Appointment)
+        .filter(
+            Appointment.doctor_id == doctor.id,
+            Appointment.status == AppointmentStatus.completed,
+        )
+        .count()
+    )
 
-    total_records = db.query(MedicalRecord).filter(
-        MedicalRecord.doctor_id == doctor.id
-    ).count()
+    total_records = (
+        db.query(MedicalRecord).filter(MedicalRecord.doctor_id == doctor.id).count()
+    )
 
     return {
         "today_patients": today_patients,
@@ -123,28 +152,39 @@ def patient_dashboard(
         .filter(
             Appointment.patient_id == patient.id,
             Appointment.appointment_date > datetime.now(),
-            Appointment.status.in_([AppointmentStatus.pending, AppointmentStatus.confirmed]),
+            Appointment.status.in_(
+                [AppointmentStatus.pending, AppointmentStatus.confirmed]
+            ),
         )
         .order_by(Appointment.appointment_date.asc())
         .first()
     )
 
-    total_appointments = db.query(Appointment).filter(
-        Appointment.patient_id == patient.id
-    ).count()
+    total_appointments = (
+        db.query(Appointment).filter(Appointment.patient_id == patient.id).count()
+    )
 
     total_prescriptions = (
-        db.query(MedicalRecord)
+        db.query(Prescription)
+        .join(MedicalRecord, Prescription.medical_record_id == MedicalRecord.id)
         .filter(MedicalRecord.patient_id == patient.id)
         .count()
     )
 
-    total_records = db.query(MedicalRecord).filter(
-        MedicalRecord.patient_id == patient.id
-    ).count()
+    total_records = (
+        db.query(MedicalRecord).filter(MedicalRecord.patient_id == patient.id).count()
+    )
 
     return {
-        "next_appointment": next_appointment,
+        "next_appointment": (
+            {
+                "id": next_appointment.id,
+                "appointment_date": next_appointment.appointment_date.isoformat(),
+                "status": next_appointment.status.value,
+            }
+            if next_appointment
+            else None
+        ),
         "total_appointments": total_appointments,
         "total_prescriptions": total_prescriptions,
         "total_medical_records": total_records,
@@ -170,8 +210,20 @@ def monthly_appointments(
         .all()
     )
 
-    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
     data = {m: 0 for m in months}
     for row in results:
         data[months[int(row.month) - 1]] = row.count
@@ -209,9 +261,11 @@ def patient_statistics(
 
     # New patients this month
     first_of_month = date.today().replace(day=1)
-    new_this_month = db.query(Patient).filter(
-        func.date(Patient.created_at) >= first_of_month
-    ).count()
+    new_this_month = (
+        db.query(Patient)
+        .filter(func.date(Patient.created_at) >= first_of_month)
+        .count()
+    )
 
     return {
         "total": total,
