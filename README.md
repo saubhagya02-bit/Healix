@@ -84,6 +84,7 @@ flowchart LR
  
 <details>
 <summary><b>Database schema (ER diagram)</b></summary>
+ 
 ```mermaid
 erDiagram
     USER ||--o| PATIENT : "has profile"
@@ -105,7 +106,6 @@ erDiagram
     PRESCRIPTION { int id string medicine_name string dosage string frequency }
 ```
 </details>
----
  
 ## 🚀 Getting Started
  
