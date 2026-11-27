@@ -1,42 +1,16 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-venv/
-env/
+# secrets
 .env
-*.egg-info/
-dist/
-build/
+*.env
+!.env.example
+
+# python
+venv/
+__pycache__/
+*.pyc
+*.db
 .pytest_cache/
-
-# Node
-node_modules/
-dist/
-.env.local
-.env.production
-
-# Docker
-.docker/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Database
-*.sqlite3
-postgres_data/
-
-# Uploads
 backend/uploads/
 
-# Logs
-*.log
+# node
+node_modules/
+dist/
