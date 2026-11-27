@@ -1,8 +1,6 @@
-# 🏥 Healix - Healthcare Management System
+# 🏥 Healix - Healthcare Appointment & Electronic Medical Records System
 
-A full-stack web application for managing healthcare operations including patient appointments, electronic medical records, prescriptions, doctor schedules and admin reporting.
-
-Built with **Python FastAPI** (backend) + **React.js** (frontend) + **PostgreSQL** (database).
+A full-stack web application where **patients** book appointments, **doctors** run consultations and issue prescriptions, and **admins** manage the whole hospital, with role-based access, analytics and a production-style DevOps setup.
 
 ---
 
@@ -32,329 +30,268 @@ Built with **Python FastAPI** (backend) + **React.js** (frontend) + **PostgreSQL
 ---
 
 ## ✨ Features
-
-### 🧑‍💼 Admin
-- Full user management (activate / deactivate / delete)
-- Create and manage doctor profiles
-- Manage hospital departments
-- View and update all appointments
-- Analytics dashboard with charts
-- Monthly appointment reports
-- Patient and department statistics
-
-### 👨‍⚕️ Doctor
-- View daily schedule and upcoming appointments
-- Add diagnoses, treatment plans, and prescriptions
-- Complete consultations and create medical records
-- View patient history
-- Update professional profile and availability
-
-### 🧑‍🤝‍🧑 Patient
-- Register and login
-- Book appointments with doctor availability checking
-- View and cancel appointments
-- View complete medical history
-- View prescriptions from doctors
-- Update personal profile
-
+ 
+### 👤 Patient
+- Self-registration and secure login
+- Browse doctors by department and book appointments with date and time-slot selection
+- Cancel own appointments
+- View personal medical records, diagnoses and prescriptions
+- Manage personal profile (blood group, emergency contact, etc.)
+### 🩺 Doctor
+- Dashboard with today's patients, upcoming appointments and consultation stats
+- Confirm appointments, then complete the visit by writing a **medical record with multiple prescriptions**
+- "My Patients" view built from confirmed and completed appointments
+- Manage own professional profile, fees, available days and working hours
+### 🛠️ Admin
+- Create, activate/deactivate and delete users
+- Manage doctors, departments, patients and all appointments
+- Analytics: monthly appointments, appointments by department, patient demographics, monthly revenue
+### ⚙️ Business Rules (enforced by the API)
+- Appointments can only be booked **in the future**, on the doctor's **working days** and **within working hours**
+- **No double-booking**: a doctor cannot have two active appointments within the same 30-minute window
+- Patients can only **cancel**; doctors can only manage **their own** appointments and records
+- Completed or cancelled appointments are locked for non-admins
+- Saving a medical record automatically **completes** its appointment
+- Users with appointments or records cannot be deleted (deactivate instead), which preserves medical history
+- Public registration always creates a **patient**; doctors and admins are created by an admin
+### 🎨 UI / UX
+- Responsive layout with a **collapsible sidebar** and a mobile drawer
+- Consistent design system with Tailwind CSS: cards, tables, badges, modals, confirm dialogs
+- Toast notifications and clear validation messages
 ---
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
+ 
+## 🧰 Tech Stack
+ 
+| Layer | Technologies |
 |---|---|
-| Frontend | React 18, Vite, Tailwind CSS, React Router v6 |
-| Charts | Recharts |
-| HTTP Client | Axios |
-| Backend | Python 3.12, FastAPI |
-| ORM | SQLAlchemy 2.0 |
-| Validation | Pydantic v2 |
-| Authentication | JWT (python-jose), bcrypt |
-| Database | PostgreSQL 16 |
-| Web Server | Nginx (production) |
-
+| **Backend** | FastAPI, SQLAlchemy 2.0, Pydantic v2, Alembic, python-jose (JWT), passlib + bcrypt |
+| **Database** | PostgreSQL 16 (SQLite is used for tests) |
+| **Frontend** | React, Vite, Tailwind CSS, React Router, Axios, Recharts, Lucide icons, date-fns, react-hot-toast |
+| **DevOps** | Docker, Docker Compose, Nginx, GitHub Actions |
+| **Testing** | pytest, FastAPI TestClient |
+ 
 ---
-
-## 📁 Project Structure
-
+ 
+## 🏗️ Architecture
+ 
+```mermaid
+flowchart LR
+    U[Browser<br/>React SPA] -->|HTTP /api| N[Nginx]
+    N -->|proxy| B[FastAPI<br/>REST API]
+    B -->|SQLAlchemy ORM| D[(PostgreSQL)]
+    B -.->|JWT auth + RBAC| B
 ```
-Healix/
-│
+ 
+<details>
+<summary><b>Database schema (ER diagram)</b></summary>
+```mermaid
+erDiagram
+    USER ||--o| PATIENT : "has profile"
+    USER ||--o| DOCTOR : "has profile"
+    DEPARTMENT ||--o{ DOCTOR : contains
+    PATIENT ||--o{ APPOINTMENT : books
+    DOCTOR ||--o{ APPOINTMENT : receives
+    APPOINTMENT ||--o| MEDICAL_RECORD : produces
+    PATIENT ||--o{ MEDICAL_RECORD : owns
+    DOCTOR ||--o{ MEDICAL_RECORD : writes
+    MEDICAL_RECORD ||--o{ PRESCRIPTION : includes
+    PATIENT ||--o{ LAB_REPORT : has
+ 
+    USER { int id string name string email string role bool is_active }
+    PATIENT { int id date dob string gender string blood_group }
+    DOCTOR { int id string specialization string license_no float consultation_fee }
+    APPOINTMENT { int id datetime appointment_date string status string reason }
+    MEDICAL_RECORD { int id text diagnosis text treatment date follow_up_date }
+    PRESCRIPTION { int id string medicine_name string dosage string frequency }
+```
+</details>
+---
+ 
+## 🚀 Getting Started
+ 
+### Option 1: Docker (recommended)
+ 
+```bash
+git clone https://github.com/YOUR_USERNAME/healix.git
+cd healix
+ 
+cp .env.example .env              # edit the password and SECRET_KEY
+docker compose up --build
+ 
+# in another terminal: create the first admin account
+docker compose exec backend python seed_admin.py
+```
+ 
+| Service | URL |
+|---|---|
+| Web app | http://localhost:3000 |
+| API | http://localhost:8000 |
+| Interactive API docs (Swagger) | http://localhost:8000/docs |
+ 
+### Option 2: Run locally
+ 
+**Prerequisites:** Python 3.12+, Node.js 20+, PostgreSQL 14+
+ 
+**1. Create a database**
+```sql
+CREATE DATABASE healix_db;
+```
+ 
+**2. Backend**
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate            # Windows
+# source venv/bin/activate       # macOS / Linux
+ 
+pip install -r requirements.txt
+cp .env.example .env             # then set DATABASE_URL and SECRET_KEY
+alembic upgrade head             # create the tables
+python seed_admin.py             # create the admin user
+uvicorn app.main:app --reload --port 8000
+```
+ 
+**3. Frontend**
+```bash
+cd frontend
+npm install
+npm run dev                      # http://localhost:5173 (proxies /api to :8000)
+```
+ 
+---
+ 
+## ⚙️ Configuration
+ 
+Backend settings are read from `backend/.env` (see `backend/.env.example`).
+ 
+| Variable | Description | Example |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/healix_db` |
+| `SECRET_KEY` | JWT signing key, long and random | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ALGORITHM` | JWT algorithm | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime | `60` |
+| `DEBUG` | Auto-create tables on startup (use `False` in production and rely on Alembic) | `True` |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins | `http://localhost:5173` |
+ 
+> Never commit your real `.env` file. It is listed in `.gitignore`.
+ 
+---
+ 
+## 📡 API Overview
+ 
+Full interactive documentation is available at **`/docs`** (Swagger UI) and **`/redoc`**.
+ 
+| Area | Endpoints | Access |
+|---|---|---|
+| **Auth** | `POST /api/auth/register` · `POST /api/auth/login` · `GET /api/auth/me` | Public / authenticated |
+| **Users** | `GET/POST /api/users` · `GET/PUT/DELETE /api/users/{id}` · `PATCH /api/users/{id}/toggle-active` | Admin (self for read/update) |
+| **Patients** | `GET /api/patients` · `GET/PUT /api/patients/me` · `GET/PUT/DELETE /api/patients/{id}` | Admin, doctor, self |
+| **Doctors** | `GET /api/doctors` · `GET/PUT /api/doctors/me` · `POST` · `PUT/DELETE /api/doctors/{id}` | All read, admin write |
+| **Departments** | `GET/POST /api/departments` · `GET/PUT/DELETE /api/departments/{id}` | All read, admin write |
+| **Appointments** | `GET/POST /api/appointments` · `GET/PUT/DELETE /api/appointments/{id}` | Role-filtered |
+| **Medical Records** | `GET/POST /api/records` · `GET/PUT /api/records/{id}` | Doctor writes, patient reads own |
+| **Reports** | `GET /api/reports/dashboard/{admin\|doctor\|patient}` · `/appointments/monthly` · `/appointments/by-department` · `/patients/statistics` | Role-specific |
+ 
+Authentication uses a **Bearer JWT** header: `Authorization: Bearer <token>`.
+ 
+---
+ 
+## 🧪 Testing
+ 
+The backend has **42 automated tests** covering authentication, role-based permissions, booking rules, medical records and user management. They run against a temporary SQLite database, so PostgreSQL is not required.
+ 
+```bash
+cd backend
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+ 
+GitHub Actions runs the test suite, applies the migrations to a real PostgreSQL service and builds the frontend on every push and pull request.
+ 
+---
+ 
+## 🗄️ Database Migrations
+ 
+Schema changes are managed with **Alembic**.
+ 
+```bash
+# after changing a model
+alembic revision --autogenerate -m "describe the change"
+alembic upgrade head
+ 
+# roll back one step
+alembic downgrade -1
+```
+ 
+---
+ 
+## 📁 Project Structure
+ 
+```
+healix/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI entry point
-│   │   ├── config.py            # Settings & environment variables
-│   │   ├── database/
-│   │   │   └── database.py      # SQLAlchemy engine & session
-│   │   ├── models/
-│   │   │   └── models.py        # All database models
-│   │   ├── schemas/
-│   │   │   └── schemas.py       # Pydantic request/response schemas
-│   │   ├── routers/
-│   │   │   ├── auth.py          # Register, Login, Logout
-│   │   │   ├── users.py         # User management
-│   │   │   ├── patients.py      # Patient CRUD
-│   │   │   ├── doctors.py       # Doctor CRUD
-│   │   │   ├── appointments.py  # Appointment CRUD
-│   │   │   ├── records.py       # Medical records
-│   │   │   ├── departments.py   # Department CRUD
-│   │   │   └── reports.py       # Dashboard stats & charts
-│   │   └── utils/
-│   │       └── auth.py          # JWT utils, password hashing
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── Dockerfile
-│
-└── frontend/
-    ├── src/
-    │   ├── App.jsx
-    │   ├── main.jsx
-    │   ├── index.css
-    │   ├── context/
-    │   │   └── AuthContext.jsx
-    │   ├── services/
-    │   │   └── api.js
-    │   ├── components/
-    │   │   ├── layout/
-    │   │   │   ├── Layout.jsx
-    │   │   │   └── Sidebar.jsx
-    │   │   └── common/
-    │   │       └── index.jsx
-    │   └── pages/
-    │       ├── Login.jsx
-    │       ├── Register.jsx
-    │       ├── admin/
-    │       ├── doctor/
-    │       └── patient/
-    ├── package.json
-    ├── vite.config.js
-    ├── tailwind.config.js
-    └── Dockerfile
+│   │   ├── main.py              # FastAPI app, CORS, routers
+│   │   ├── config.py            # Settings from environment
+│   │   ├── database/            # Engine, session, Base
+│   │   ├── models/              # SQLAlchemy models
+│   │   ├── schemas/             # Pydantic request/response schemas
+│   │   ├── routers/             # auth, users, patients, doctors, appointments, records, departments, reports
+│   │   └── utils/auth.py        # JWT, password hashing, role guards
+│   ├── migrations/              # Alembic migrations
+│   ├── tests/                   # pytest suite
+│   ├── seed_admin.py            # Creates / resets the admin account
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/          # common UI + layout (collapsible sidebar)
+│   │   ├── context/             # AuthContext
+│   │   ├── pages/               # admin / doctor / patient / auth pages
+│   │   └── services/api.js      # Axios client and API helpers
+│   ├── Dockerfile
+│   └── nginx.conf
+├── .github/workflows/ci.yml     # CI pipeline
+├── docker-compose.yml
+└── README.md
 ```
-
+ 
 ---
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.12+
-- Node.js 18+
-- PostgreSQL 16+
-- Git
-
----
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/yourusername/healix.git
-cd healix
-```
-
----
-
-### 2. Database Setup
-
-Open **pgAdmin** or **psql** and create the database:
-
-```sql
-CREATE DATABASE hospital_appoinment_system;
-```
-
-Then run the full setup script:
-
-```bash
-psql -U postgres -d hospital_appoinment_system -f database_setup.sql
-```
-
-Or open `database_setup.sql` in pgAdmin Query Tool and click **Run**.
-
----
-
-### 3. Backend Setup
-
-```bash
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Setup environment variables
-cp .env.example .env
-# Edit .env with your database credentials
-```
-
-**Edit `.env`:**
-```env
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/hospital_appoinment_system
-SECRET_KEY=your-long-random-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-APP_NAME=Healix
-DEBUG=True
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-```
-
-**Start the backend:**
-```bash
-python -m uvicorn app.main:app --reload --port 8000
-```
-
-Backend runs at: `http://localhost:8000`
-API docs at: `http://localhost:8000/docs`
-
----
-
-### 4. Frontend Setup
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-Frontend runs at: `http://localhost:3000`
-
----
-
-### 5. Generate Password Hashes (First Time Setup)
-
-After setting up the database, generate correct password hashes:
-
-```bash
-cd backend
-venv\Scripts\activate
-python generate_hashes.py
-```
-
-Copy the 3 SQL statements it prints and run them in pgAdmin.
-
----
-
-## 🔐 User Roles & Access
-
-| Role | Access |
-|---|---|
-| Admin | Full system access, user management, reports |
-| Doctor | Appointments, medical records, prescriptions |
-| Patient | Book appointments, view records and prescriptions |
-
----
-
-## 📡 API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | Login and get JWT token |
-| GET | `/api/auth/me` | Get current user |
-| GET | `/api/patients` | List all patients |
-| GET | `/api/doctors` | List all doctors |
-| GET | `/api/departments` | List departments |
-| POST | `/api/appointments` | Book appointment |
-| GET | `/api/appointments` | Get appointments |
-| PUT | `/api/appointments/{id}` | Update appointment |
-| POST | `/api/records` | Create medical record |
-| GET | `/api/records` | Get medical records |
-| GET | `/api/reports/dashboard/admin` | Admin dashboard stats |
-| GET | `/api/reports/dashboard/doctor` | Doctor dashboard stats |
-| GET | `/api/reports/dashboard/patient` | Patient dashboard stats |
-| GET | `/api/reports/appointments/monthly` | Monthly chart data |
-| GET | `/api/reports/appointments/by-department` | Department chart data |
-
-Full API documentation available at `http://localhost:8000/docs`
-
----
-
-## 🗄️ Database Schema
-
-```
-users
-  ├── patients (one-to-one)
-  │     ├── appointments (one-to-many)
-  │     ├── medical_records (one-to-many)
-  │     └── lab_reports (one-to-many)
-  └── doctors (one-to-one)
-        ├── department (many-to-one)
-        ├── appointments (one-to-many)
-        └── medical_records (one-to-many)
-              └── prescriptions (one-to-many)
-```
-
----
-
+ 
 ## 🔒 Security
-
-- JWT token authentication with configurable expiry
-- Bcrypt password hashing
-- Role-based access control on every API endpoint
-- CORS configuration for allowed origins
-- Input validation with Pydantic
-- SQL injection protection via SQLAlchemy ORM
-- Environment variables for all sensitive data
-
+ 
+- Passwords hashed with **bcrypt**; JWT access tokens with expiry
+- **Role-based access control** and ownership checks on every endpoint, verified by tests
+- Public registration cannot create privileged accounts
+- Secrets come from environment variables and `.env` is git-ignored
+- Input validation with Pydantic; SQL injection protection through the SQLAlchemy ORM
+- Medical history is protected from accidental deletion
 ---
-
-## 🐳 Docker Deployment (Optional)
-
-```bash
-# Build and start all services
-docker-compose up --build
-
-# App runs at http://localhost:3000
-# API runs at http://localhost:8000
-```
-
+ 
+## 🗺️ Roadmap
+ 
+- [x] Role-based authentication (admin / doctor / patient)
+- [x] Appointment workflow with availability and conflict checks
+- [x] Medical records and prescriptions
+- [x] Analytics dashboard
+- [x] Automated tests, Alembic migrations, Docker, CI
+- [ ] Pagination on all list endpoints
+- [ ] Login rate limiting
+- [ ] Audit log for medical-record access
+- [ ] Refresh tokens with httpOnly cookies
+- [ ] Email notifications and password reset
+- [ ] Lab report upload
+- [ ] Live deployment
 ---
-
-## 📦 Building for Production
-
-**Frontend:**
-```bash
-cd frontend
-npm run build
-# Output in frontend/dist/
-```
-
-**Backend:**
-```bash
-# Use gunicorn for production
-pip install gunicorn
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-```
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 👨‍💻 Author
-
-**Ushani Saubhagya** - Software Engineering Student, University of Kelaniya
-
----
-
+ 
 ## 📄 License
-
-This project is licensed under the MIT License - free for academic and commercial use.
+ 
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for details.
+ 
+---
+ 
+<div align="center">
+ 
+If you find this project useful, consider giving it a ⭐
+ 
+</div>
